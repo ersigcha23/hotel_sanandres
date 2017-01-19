@@ -3,9 +3,13 @@ package com.enlinea.h_sanandres_rf.controladores;
 import com.enlinea.h_sanandres_rf.model.CabeceraFactura;
 import com.enlinea.h_sanandres_rf.controladores.util.JsfUtil;
 import com.enlinea.h_sanandres_rf.controladores.util.JsfUtil.PersistAction;
+import com.enlinea.h_sanandres_rf.model.Cliente;
+import com.enlinea.h_sanandres_rf.model.DetalleFactura;
 import com.enlinea.h_sanandres_rf.negocio.CabeceraFacturaFacade;
+import com.enlinea.h_sanandres_rf.negocio.ClienteFacade;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.logging.Level;
@@ -14,20 +18,27 @@ import javax.ejb.EJB;
 import javax.ejb.EJBException;
 import javax.inject.Named;
 import javax.enterprise.context.SessionScoped;
+import javax.faces.application.FacesMessage;
 import javax.faces.component.UIComponent;
 import javax.faces.context.FacesContext;
 import javax.faces.convert.Converter;
 import javax.faces.convert.FacesConverter;
+import org.primefaces.context.RequestContext;
 
 @Named("cabeceraFacturaController")
 @SessionScoped
 public class CabeceraFacturaController implements Serializable {
 
     @EJB
+    private ClienteFacade ejbClienteFacade;
+    
+    @EJB
     private com.enlinea.h_sanandres_rf.negocio.CabeceraFacturaFacade ejbFacade;
     private List<CabeceraFactura> items = null;
     private CabeceraFactura selected;
 
+    private DetalleFactura detalleSeleccionado;
+    
     public CabeceraFacturaController() {
     }
 
@@ -51,6 +62,8 @@ public class CabeceraFacturaController implements Serializable {
 
     public CabeceraFactura prepareCreate() {
         selected = new CabeceraFactura();
+        selected.setClienteIdcliente(new Cliente());
+        selected.setDetalleFacturaList(new ArrayList<DetalleFactura>());
         initializeEmbeddableKey();
         return selected;
     }
@@ -162,4 +175,83 @@ public class CabeceraFacturaController implements Serializable {
 
     }
 
+    public DetalleFactura getDetalleSeleccionado() {
+        return detalleSeleccionado;
+    }
+
+    public void setDetalleSeleccionado(DetalleFactura detalleSeleccionado) {
+        this.detalleSeleccionado = detalleSeleccionado;
+    }
+
+    public void cargarCliente(){
+        Cliente cliente=ejbClienteFacade.getClientebycedula(selected.getClienteIdcliente().getIdentificacion());
+        if (cliente==null){
+            System.out.println(selected.getClienteIdcliente());
+            RequestContext.getCurrentInstance().execute("PF('ClienteCreateDialog').show()");
+        }else{
+            selected.setClienteIdcliente(cliente);
+        }
+        
+    }
+    
+    public void crearCliente(){
+    if (ejbClienteFacade.getClientebycedula(selected.getClienteIdcliente().getIdentificacion())!=null){
+            FacesMessage msg = new FacesMessage(FacesMessage.SEVERITY_ERROR, "ERROR", "Ya exste un cliente registrado con ese numero de identificacion");
+            FacesContext.getCurrentInstance().addMessage(null, msg);
+            return;
+        }
+            
+        //if (!this.validadorDeCedula(selected.getClienteIdcliente().getIdentificacion())){
+        //        FacesMessage msg = new FacesMessage(FacesMessage.SEVERITY_ERROR, "ERROR", "La cedula ingresada es incorrecta");
+        //        FacesContext.getCurrentInstance().addMessage(null, msg);
+        //        return;
+        //}
+  
+        ejbClienteFacade.create(selected.getClienteIdcliente());
+        RequestContext.getCurrentInstance().execute("ClienteCreateDialog.hide()");
+    }
+    
+    private boolean validadorDeCedula(String cedula) {
+        boolean cedulaCorrecta = false;
+
+        try {
+
+            if (cedula.length() == 10) // ConstantesApp.LongitudCedula
+            {
+                int tercerDigito = Integer.parseInt(cedula.substring(2, 3));
+                if (tercerDigito < 6) {
+// Coeficientes de validación cédula
+// El decimo digito se lo considera dígito verificador
+                    int[] coefValCedula = {2, 1, 2, 1, 2, 1, 2, 1, 2};
+                    int verificador = Integer.parseInt(cedula.substring(9, 10));
+                    int suma = 0;
+                    int digito = 0;
+                    for (int i = 0; i < (cedula.length() - 1); i++) {
+                        digito = Integer.parseInt(cedula.substring(i, i + 1)) * coefValCedula[i];
+                        suma += ((digito % 10) + (digito / 10));
+                    }
+
+                    if ((suma % 10 == 0) && (suma % 10 == verificador)) {
+                        cedulaCorrecta = true;
+                    } else if ((10 - (suma % 10)) == verificador) {
+                        cedulaCorrecta = true;
+                    } else {
+                        cedulaCorrecta = false;
+                    }
+                } else {
+                    cedulaCorrecta = false;
+                }
+            } else {
+                cedulaCorrecta = false;
+            }
+        } catch (NumberFormatException nfe) {
+            cedulaCorrecta = false;
+        } catch (Exception err) {
+            cedulaCorrecta = false;
+        }
+
+        if (!cedulaCorrecta) {
+        }
+        return cedulaCorrecta;
+    }
 }

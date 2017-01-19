@@ -6,9 +6,11 @@
 package com.enlinea.h_sanandres_rf.negocio;
 
 import com.enlinea.h_sanandres_rf.model.Cliente;
+import java.util.List;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.persistence.Query;
 
 /**
  *
@@ -29,4 +31,14 @@ public class ClienteFacade extends AbstractFacade<Cliente> {
         super(Cliente.class);
     }
     
+    public Cliente getClientebycedula(String identificacion) {
+        List<Cliente>lista;
+        Query query = this.em.createNamedQuery(Cliente.findByIdentificacion);
+        query.setParameter("identificacion",identificacion);
+        lista=query.getResultList();
+        if (lista.isEmpty())
+            return null;
+        else
+            return lista.get(0);
+    }
 }
